@@ -1,0 +1,42 @@
+version: "3.4"
+
+services:
+  ms-reservations:
+    container_name: ms-reservations
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.ms-reservations.rule=PathPrefix(`/reservations`)"
+    build:
+      context: .
+    restart: always
+    volumes:
+      - ./:/app
+    ports:
+      - 7701:5000
+    env_file:
+      - ./database-dev.env
+    environment:
+      FLASK_ENV: development
+    links:
+      - ms-reservations-redis
+    command: ./wait-for.sh -t 60 ms-reservations-redis:6379 -- gunicorn -b 0.0.0.0:5000 --reload -w 1 service:app
+
+  ms-reservations-redis:
+    container_name: ms-reservations-redis
+    image: redis:6-alpine
+    restart: always
+    command: redis-server /usr/local/etc/redis/redis.conf --requirepass 4n_ins3cure_P4ss
+    ### you only need to host-map this port if you have an app (DB GUI Editor?)
+    ### on host that needs access to the Redis DB. Otherwise, keep it commented.
+    #ports:
+    #  - "6379:6379"
+    expose:
+      - 6379
+    volumes:
+      - ms_reservations_redis_data:/data
+      - $PWD/redis.conf:/usr/local/etc/redis/redis.conf
+    environment:
+      - REDIS_REPLICATION_MODE=master
+
+volumes:
+  ms_reservations_redis_data:
